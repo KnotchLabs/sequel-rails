@@ -213,6 +213,23 @@ namespace sequel_rails_namespace do
       Rails.env = previous_env
     end
   end
+
+  namespace :sessions do
+    desc 'Clear the sessions table'
+    task clear: :environment do
+      db_for_current_env.from(:sessions).truncate
+    end
+
+    desc 'Trim old sessions from the table (default: > 30 days)'
+    task :trim, [:threshold] => :environment do |_, args|
+      cutoff_period = (args.fetch(:threshold) { 30 }).to_i.days.ago
+
+      db_for_current_env
+        .from(:sessions)
+        .where { updated_at < cutoff_period }
+        .delete
+    end
+  end
 end
 
 task 'test:prepare' => "#{sequel_rails_namespace}:test:prepare"

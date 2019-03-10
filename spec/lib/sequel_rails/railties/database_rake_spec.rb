@@ -99,4 +99,46 @@ describe 'Database rake tasks', :no_transaction => true do
       end
     end
   end
+
+  describe 'db:sessions:clear' do
+    let(:sessions) { Sequel::Model.db.from(:sessions) }
+
+    after { sessions.delete }
+
+    it 'truncates sessions table' do
+      sessions.insert session_id: 'foo', data: ''
+      sessions.insert session_id: 'bar', data: ''
+
+      Dir.chdir app_root do
+        expect { `rake db:sessions:clear` }.to change { sessions.count }.by(-2)
+      end
+    end
+  end
+
+  describe 'db:sessions:trim' do
+    let(:sessions) { Sequel::Model.db.from(:sessions) }
+
+    before do
+      sessions.insert session_id: 'foo', data: '', updated_at: (Date.today - 60).to_time
+      sessions.insert session_id: 'bar', data: '', updated_at: Date.today.to_time
+    end
+
+    after { sessions.delete }
+
+    it 'delete sessions before cutoff' do
+      Dir.chdir app_root do
+        expect { `rake db:sessions:trim` }.to change { sessions.count }.by(-1)
+      end
+    end
+
+    context 'with threshold' do
+      it 'delete sessions before cutoff' do
+        sessions.insert session_id: 'baz', data: '', updated_at: (Date.today - 44).to_time
+
+        Dir.chdir app_root do
+          expect { `rake db:sessions:trim[45]` }.to change { sessions.count }.by(-1)
+        end
+      end
+    end
+  end
 end
